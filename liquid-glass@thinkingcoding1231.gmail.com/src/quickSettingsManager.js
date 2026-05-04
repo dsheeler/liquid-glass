@@ -1,4 +1,4 @@
-// src/uiManager.js
+// src/quickSettingsManager.js
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import Clutter from 'gi://Clutter';
 import Shell from 'gi://Shell';
@@ -32,17 +32,17 @@ const CORNER_RADIUS = 60.0; // The radius for the rounded corners of the dock ba
 
 // ==============================================
 
-export class UIManager {
+export class QuickSettingsManager {
     constructor(extensionPath, settings) {
         this.extensionPath = extensionPath;
         this._settings = settings;
         
         // Target the main container of the Date/Calendar menu
-        this.targetActor = Main.panel.statusArea.dateMenu.menu.actor;
-        this.menu = Main.panel.statusArea.dateMenu.menu;
+        this.targetActor = Main.panel.statusArea.quickSettings.menu.actor;
+        this.menu = Main.panel.statusArea.quickSettings.menu;
 
         // Target for animations and visual offsets (The inner content)
-        this.animActor = Main.panel.statusArea.dateMenu.menu.box;
+        this.animActor = Main.panel.statusArea.quickSettings.menu.box;
         
         this.bgActor = null;
         this.blurEffect = null;
@@ -93,8 +93,7 @@ export class UIManager {
         if (!this._settings) return;
         this._bindSettings();
 
-        // uiManager は 'enable-menu-glass'、notificationManager は 'notification-enable-glass' （※スキーマによる）
-        if (this._settings.get_boolean('enable-menu-glass')) {
+        if (this._settings.get_boolean('enable-quick-settings-glass')) {
             this._applyEffect();
         }
     }
@@ -116,56 +115,63 @@ export class UIManager {
         };
 
         // ON/OFF切り替え
-        connectSetting('enable-menu-glass', () => {
-            let enabled = this._settings.get_boolean('enable-menu-glass');
+        connectSetting('enable-quick-settings-glass', () => {
+            let enabled = this._settings.get_boolean('enable-quick-settings-glass');
             if (enabled && !this._isEffectActive) this._applyEffect();
             else if (!enabled && this._isEffectActive) this._removeEffect();
         });
 
-        connectSetting('menu-tint-color', () => {
+        connectSetting('quick-settings-tint-color', () => {
             if (this.effect) {
-                let colorArray = this._hexToColorArray(this._settings.get_string('menu-tint-color'));
+                let colorArray = this._hexToColorArray(this._settings.get_string('quick-settings-tint-color'));
                 this.effect.setTintColor(...colorArray);
             }
         });
 
-        connectSetting('menu-tint-strength', () => {
+        connectSetting('quick-settings-tint-strength', () => {
             if (this.effect) {
-                this.effect.setTintStrength(this._settings.get_double('menu-tint-strength'));
+                this.effect.setTintStrength(this._settings.get_double('quick-settings-tint-strength'));
             }
         });
 
-        connectSetting('menu-blur-radius', () => {
+        connectSetting('quick-settings-blur-radius', () => {
             if (this.blurEffect) {
-                this.blurEffect.radius = this._settings.get_int('menu-blur-radius');
+                this.blurEffect.radius = this._settings.get_int('quick-settings-blur-radius');
             }
         });
 
-        connectSetting('menu-corner-radius', () => {
+        connectSetting('quick-settings-corner-radius', () => {
             if (this.effect) {
-                this.effect.setCornerRadius(this._settings.get_int('menu-corner-radius'));
+                this.effect.setCornerRadius(this._settings.get_double('quick-settings-corner-radius'));
             }
         });
 
-        connectSetting('menu-glass-expand', () => {
+        connectSetting('quick-settings-glass-expand', () => {
             if (this.effect) {
-                this._glassExpand = this._settings.get_int('menu-glass-expand');
+                this._glassExpand = this._settings.get_int('quick-settings-glass-expand');
             }
         });
 
-        connectSetting('menu-y-offset', () => {
-            if (this.animActor) {
-                this._menuYoffset = this._settings.get_int('menu-y-offset');
-                this.animActor.translation_y = this._menuYoffset;
+        connectSetting('quick-settings-y-offset', () => {
+            if (this.targetActor) {
+                this._menuYoffset = this._settings.get_int('quick-settings-y-offset');
+                this.targetActor.translation_y = this._menuYoffset;
             }
         });
 
-        connectSetting('menu-enable-adaptive-text-color', () => {
-            this._adaptiveConfig.enabled = this._settings.get_boolean('menu-enable-adaptive-text-color');
+        connectSetting('quick-settings-x-offset', () => {
+            if (this.targetActor) {
+                this._menuXoffset = this._settings.get_int('quick-settings-x-offset');
+                this.targetActor.translation_x = this._menuXoffset;
+            }
         });
 
-        connectSetting('menu-sample-interval-ms', () => {
-            this._adaptiveConfig.sampleIntervalMs = this._settings.get_int('menu-sample-interval-ms');
+        connectSetting('quick-settings-enable-adaptive-text-color', () => {
+            this._adaptiveConfig.enabled = this._settings.get_boolean('quick-settings-enable-adaptive-text-color');
+        });
+
+        connectSetting('quick-settings-sample-interval-ms', () => {
+            this._adaptiveConfig.sampleIntervalMs = this._settings.get_int('quick-settings-sample-interval-ms');
 
         });
     }
@@ -184,20 +190,22 @@ export class UIManager {
         if (messageList && messageList.actor) {
             messageList.actor.add_style_class_name('liquid-glass-message-list');
         }
-        this.animActor.add_style_class_name('liquid-glass-menu-root');
+        // this.animActor.add_style_class_name('liquid-glass-menu-root');
 
         // Shift the menu down to prevent it from clipping into the top bar
-        this._menuYoffset = this._settings.get_int('menu-y-offset');
-        this.animActor.translation_y = this._menuYoffset;
+        this._menuYoffset = this._settings.get_int('quick-settings-y-offset');
+        this.targetActor.translation_y = this._menuYoffset;
+        this._menuXoffset = this._settings.get_int('quick-settings-x-offset');
+        this.targetActor.translation_x = this._menuXoffset;
         // this.targetActor.margin_top = MENU_Y_OFFSET;
 
-        this._glassExpand = this._settings.get_int('menu-glass-expand');
+        this._glassExpand = this._settings.get_int('quick-settings-glass-expand');
 
         this._adaptiveConfig = {
             ...AdaptiveContrastConfig,
-            enabled: this._settings.get_boolean('menu-enable-adaptive-text-color'),
+            enabled: this._settings.get_boolean('quick-settings-enable-adaptive-text-color'),
             samplePerElement: SAMPLE_PER_ELEMENT,
-            sampleIntervalMs: this._settings.get_int('menu-sample-interval-ms'),
+            sampleIntervalMs: this._settings.get_int('quick-settings-sample-interval-ms'),
         };
 
         // Create the main background actor that will hold the glass effect
@@ -220,10 +228,11 @@ export class UIManager {
         
         // Set pivot points for scaling. 
         // The menu scales from the top-center (0.5, 0.0)
-        this.animActor.set_pivot_point(0.5, 0.0);
+        // this.animActor.set_pivot_point(0.5, 0.0);
+        this.animActor.set_pivot_point(0.5, 0.0); // Scale from top-left to match the background actor's coordinate system
         
         // bgActor scales from the top-left (0.0, 0.0) because we manually sync its exact coordinates
-        this.bgActor.set_pivot_point(0.0, 0.0);
+        this.bgActor.set_pivot_point(0.5, 0.0);
 
         // Insert the custom background *underneath* the actual menu UI
         let menuParent = this.menu.actor.get_parent();
@@ -234,10 +243,10 @@ export class UIManager {
             Main.uiGroup.add_child(this.bgActor);
         }
 
-        let blurRadius = this._settings.get_int('menu-blur-radius');
-        let tintColorStr = this._settings.get_string('menu-tint-color');
-        let tintStrength = this._settings.get_double('menu-tint-strength');
-        let cornerRadius = this._settings.get_int('menu-corner-radius');
+        let blurRadius = this._settings.get_int('quick-settings-blur-radius');
+        let tintColorStr = this._settings.get_string('quick-settings-tint-color');
+        let tintStrength = this._settings.get_double('quick-settings-tint-strength');
+        let cornerRadius = this._settings.get_double('quick-settings-corner-radius');
 
         // Apply native GNOME blur to the internal clipBox (which contains the clones)
         this.blurEffect = new Shell.BlurEffect({ radius: blurRadius, mode: Shell.BlurMode.ACTOR });
@@ -250,7 +259,6 @@ export class UIManager {
         this.effect.setPadding(SHADER_PADDING);
         this.effect.setTintColor(...this._hexToColorArray(tintColorStr)); // Pure transparent base
         this.effect.setTintStrength(tintStrength); // Subtle tint strength to enhance the glass look without overpowering the background
-        this.effect.setCornerRadius(cornerRadius);
         this.effect.setIsDock(false);
         this.bgActor.add_effect(this.effect);
 
@@ -376,27 +384,32 @@ export class UIManager {
     _syncActorProperties(source, clone) {
         if (!source || !clone) return;
         
-        let [absX, absY] = source.get_transformed_position();
-        let [w, h] = source.get_size();
+        try {
+            let [absX, absY] = source.get_transformed_position();
+            let [w, h] = source.get_size();
 
-        if (Number.isNaN(absX) || Number.isNaN(absY) || Number.isNaN(w) || Number.isNaN(h) || w <= 0 || h <= 0) {
-            clone.visible = false;
-            return;
+            if (Number.isNaN(absX) || Number.isNaN(absY) || Number.isNaN(w) || Number.isNaN(h) || w <= 0 || h <= 0) {
+                clone.visible = false;
+                return;
+            }
+
+            clone.set_position(absX, absY);
+            clone.set_size(w, h);
+            clone.set_scale(source.scale_x, source.scale_y);
+            
+            let pX = source.pivot_point ? source.pivot_point.x : 0;
+            let pY = source.pivot_point ? source.pivot_point.y : 0;
+            clone.set_pivot_point(pX, pY);
+
+            clone.translation_x = 0;
+            clone.translation_y = 0;
+            
+            clone.opacity = source.opacity;
+            clone.visible = source.visible && source.mapped;
+        } catch (e) {
+            // The C-level actor was destroyed by GNOME Shell, but JS hasn't caught up yet.
+            // Catching this prevents the "already disposed" critical crash.
         }
-
-        clone.set_position(absX, absY);
-        clone.set_size(w, h);
-        clone.set_scale(source.scale_x, source.scale_y);
-        
-        let pX = source.pivot_point ? source.pivot_point.x : 0;
-        let pY = source.pivot_point ? source.pivot_point.y : 0;
-        clone.set_pivot_point(pX, pY);
-
-        clone.translation_x = 0;
-        clone.translation_y = 0;
-        
-        clone.opacity = source.opacity;
-        clone.visible = source.visible && source.mapped;
     }
 
     // Calculates and synchronizes the position/size of the glass background every frame
@@ -532,28 +545,32 @@ export class UIManager {
 
 
                 for (let w of windows) {
-                    let metaWindow = w.get_meta_window();
-                    if (!metaWindow || metaWindow.minimized || !w.visible) continue;
+                    try {
+                        let metaWindow = w.get_meta_window();
+                        if (!metaWindow || metaWindow.minimized || !w.visible) continue;
 
-                    activeWindows.add(w);
+                        activeWindows.add(w);
 
-                    let clone;
-                    if (!this._windowClones.has(w)) {
-                        // Create a clone for newly opened windows.
-                        clone = new Clutter.Clone({ source: w });
-                        this.windowClonesContainer.add_child(clone);
-                        this._windowClones.set(w, clone);
-                    } else {
-                        // Retrieve existing clone.
-                        clone = this._windowClones.get(w);
+                        let clone;
+                        if (!this._windowClones.has(w)) {
+                            // Create a clone for newly opened windows.
+                            clone = new Clutter.Clone({ source: w });
+                            this.windowClonesContainer.add_child(clone);
+                            this._windowClones.set(w, clone);
+                        } else {
+                            // Retrieve existing clone.
+                            clone = this._windowClones.get(w);
+                        }
+                        
+                        // Keep the position synchronized with the real window.
+                        clone.set_position(w.x, w.y);
+
+                        // Update the Z-index dynamically to reflect window focus changes.
+                        this.windowClonesContainer.set_child_at_index(clone, zIndex);
+                        zIndex++;
+                    } catch (e) {
+                        continue; // The window might have been closed or changed state during iteration, just skip it.
                     }
-                    
-                    // Keep the position synchronized with the real window.
-                    clone.set_position(w.x, w.y);
-
-                    // Update the Z-index dynamically to reflect window focus changes.
-                    this.windowClonesContainer.set_child_at_index(clone, zIndex);
-                    zIndex++;
                 }
             } else {
                 // --- Overview時 ---
@@ -950,7 +967,7 @@ export class UIManager {
                 // Dynamically adjust the shader's corner radius during the animation.
                 // As the menu shrinks, the absolute radius shrinks too, keeping the corners proportional.
                 if (this.effect && typeof this.effect.setCornerRadius === 'function') {
-                    let baseRadius = this._settings.get_double('menu-corner-radius'); 
+                    let baseRadius = this._settings.get_double('quick-settings-corner-radius'); 
                     this.effect.setCornerRadius(baseRadius * currentScale);
                     if (typeof this.effect.setAnimationScale === 'function') {
                         this.effect.setAnimationScale(currentScale);
@@ -977,6 +994,7 @@ export class UIManager {
                     if (!isClosing) {
                         // Restore scale to exactly 1.0 to fix font hinting/blurriness issues
                         this.animActor.set_scale(1.0, 1.0);
+                        // this.animActor.translation_x = 0;
                         this.animActor.opacity = 255;
                         this.bgActor.opacity = 255;
                         this._syncGeometry();
@@ -1014,27 +1032,26 @@ export class UIManager {
         this.targetActor.remove_style_class_name('liquid-glass-transparent');
         if (this.animActor) {
             this.animActor.remove_style_class_name('liquid-glass-transparent');
-            this.animActor.remove_style_class_name('liquid-glass-menu-root');
+            // this.animActor.remove_style_class_name('liquid-glass-menu-root');
             
             // Revert UI shifts and forced states
+            this.animActor.translation_x = 0;
             this.animActor.translation_y = 0;
             this.animActor.set_scale(1.0, 1.0);
             this.animActor.opacity = 255;
         }
 
-        const messageList = Main.panel.statusArea.dateMenu._messageList;
-        if (messageList && messageList.actor) {
-            messageList.actor.add_style_class_name('liquid-glass-message-list');
-        }
-
         // Revert UI shifts and forced states when extension is disabled
         this.targetActor.translation_y = 0;
+        this.targetActor.translation_x = 0;
         // this.targetActor.margin_top = 0;
         this.targetActor.set_scale(1.0, 1.0);
         this.targetActor.opacity = 255;
         
         if (this.menu.actor) {
             this.menu.actor.opacity = 255;
+            this.menu.actor.translation_x = 0;
+            this.menu.actor.translation_y = 0;
 
             // If the menu is currently open, forcefully close it 
             // without animations to reset GNOME's internal state
